@@ -1,0 +1,9 @@
+{
+  "target_generations": 5,
+  "total_rows": 1130,
+  "complete_rows": 750,
+  "incomplete_rows": 380,
+  "auth_only_rows": 351,
+  "policy_or_other_rows": 29,
+  "remaining_generations_needed": 1843
+}
