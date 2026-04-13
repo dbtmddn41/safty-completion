@@ -139,4 +139,12 @@ python scripts/convert_advbench_to_seeds.py \
   - framing styles: `Direct information request`, `Reflective / analytical request`, `Scenario-based / hypothetical request`
 - Stage 3 generates `k=5` triplets per Stage 2 row by default.
 - Stage 3 uses the base temperature for the first 2 generations and the high temperature for the remaining 3 generations by default.
-- Stage 3.1 keeps only rows whose judge output marks the full triplet as accepted, and can also emit a full audit file.
+- Stage 3.1 now implements the full paper-skeleton filter stack:
+  - intent consistency
+  - policy-order
+  - parallelism / cover / framing consistency
+  - task consistency
+  - harm-domain consistency
+  - naturalness / lexical artifact checks
+  - ROUGE-L deduplication within harm-domain + task-type buckets
+- Stage 3.1 prints per-check pass/fail counts at the end of a run and can also emit a full audit file.
