@@ -1,0 +1,10 @@
+{
+  "target_model": "meta-llama/Llama-3.3-70B-Instruct",
+  "grader_model": "gemini-2.0-flash-exp",
+  "total_samples": 5,
+  "errors": 15,
+  "metrics_by_intent": {
+    "overall": {}
+  },
+  "missing_gold_by_intent": {}
+}

@@ -317,6 +317,7 @@ def _resolve_gcloud_path() -> Optional[str]:
             "/opt/homebrew/bin/gcloud",
             "/usr/local/bin/gcloud",
             os.path.expanduser("~/google-cloud-sdk/bin/gcloud"),
+            os.path.expanduser("~/.local/google-cloud-sdk/bin/gcloud"),
         ):
             if os.path.exists(candidate):
                 gcloud_path = candidate
@@ -409,6 +410,31 @@ def _get_token_from_gcloud(gcloud_path: str, auth_errors: List[str]) -> Optional
     return None
 
 
+def _get_token_from_metadata_server(auth_errors: List[str]) -> Optional[str]:
+    """Try to obtain an access token from the GCE metadata server."""
+    url = (
+        "http://metadata.google.internal/computeMetadata/v1/instance/"
+        "service-accounts/default/token"
+    )
+    headers = {"Metadata-Flavor": "Google"}
+    try:
+        response = request_json(url, payload=None, headers=headers, timeout=2.0)
+    except Exception as exc:
+        auth_errors.append(f"metadata server token fetch failed: {exc}")
+        return None
+
+    token = str(response.get("access_token", "")).strip()
+    if not token:
+        auth_errors.append("metadata server returned no access_token")
+        return None
+
+    expires_in = response.get("expires_in")
+    ttl_seconds = 300
+    if isinstance(expires_in, int):
+        ttl_seconds = max(60, expires_in - 300)
+    return _cache_vertex_token(token, ttl_seconds)
+
+
 def get_vertex_access_token() -> str:
     env_token = os.getenv("VERTEX_ACCESS_TOKEN", "").strip()
     if env_token:
@@ -430,6 +456,12 @@ def get_vertex_access_token() -> str:
         token = _get_token_from_gcloud(gcloud_path, auth_errors)
         if token:
             return token
+    else:
+        auth_errors.append("gcloud not found in PATH")
+
+    token = _get_token_from_metadata_server(auth_errors)
+    if token:
+        return token
 
     guidance = (
         "Could not obtain a Vertex access token. "
@@ -438,7 +470,8 @@ def get_vertex_access_token() -> str:
         "2. Configure Application Default Credentials with "
         "'gcloud auth application-default login'\n"
         "3. Configure an authenticated gcloud session with 'gcloud auth login'\n"
-        "4. Ensure gcloud can read and write its config directory (usually ~/.config/gcloud)"
+        "4. Ensure gcloud can read and write its config directory (usually ~/.config/gcloud)\n"
+        "5. If running on GCE/GKE/Vertex, attach a service account with cloud-platform scope"
     )
     if auth_errors:
         raise RuntimeError(f"{guidance}\n\nAuth attempt details:\n- " + "\n- ".join(auth_errors))
@@ -502,6 +535,18 @@ def call_claude_on_vertex(prompt: str, config: ClaudeVertexConfig) -> str:
     return text
 
 
+_THINKING_MODELS = {
+    "gemini-2.5-pro", "gemini-2.5-flash",
+    "gemini-3-pro-preview", "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview", "gemini-3.1-pro-preview-customtools",
+    "gemini-3.1-flash-lite-preview", "gemini-3.1-flash-image-preview",
+    "gemini-3.1-flash-tts-preview",
+}
+
+def _is_thinking_model(model: str) -> bool:
+    base = model.split("/")[-1]
+    return any(base == m or base.startswith(m + "-") for m in _THINKING_MODELS)
+
 def call_gemini(prompt: str, model: str, max_output_tokens: int = 512, temperature: float = 0.0) -> str:
     api_key = "AIzaSyByLhmCUw_FHzrvia7zQZq8o75tn59-kaU"#get_env_or_raise("GEMINI_API_KEY")
     encoded_model = urllib.parse.quote(model, safe="")
@@ -517,6 +562,9 @@ def call_gemini(prompt: str, model: str, max_output_tokens: int = 512, temperatu
             "responseMimeType": "application/json",
         },
     }
+    if _is_thinking_model(model):
+        # Use dynamic thinking budget for models that require thinking mode.
+        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": -1}
     headers = {"Content-Type": "application/json"}
     response = call_with_retries(lambda: request_json(url, payload, headers))
     candidates = response.get("candidates", [])

@@ -4,3 +4,4 @@ venv/
 .DS_Store
 .codex
 scripts/__pycache__/
+data/automated_eval/gemini_pro/eval_gemini_pro_audit_t4096.jsonl

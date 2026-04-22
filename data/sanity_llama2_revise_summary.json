@@ -1,0 +1,10 @@
+{
+  "target_model": "ignored",
+  "grader_model": "gemini-3.1-pro-preview",
+  "total_samples": 3673,
+  "errors": 11019,
+  "metrics_by_intent": {
+    "overall": {}
+  },
+  "missing_gold_by_intent": {}
+}
