@@ -138,13 +138,14 @@ python scripts/convert_advbench_to_seeds.py \
   - benign covers: `Education / learning`, `Research / analysis`, `Journalistic / historical / documentary interest`, `Defensive protection / safety`
   - framing styles: `Direct information request`, `Reflective / analytical request`, `Scenario-based / hypothetical request`
 - Stage 3 generates `k=5` triplets per Stage 2 row by default.
-- Stage 3 uses the base temperature for the first 2 generations and the high temperature for the remaining 3 generations by default.
+- Stage 3 uses the base temperature for the first 2 successful generations and the high temperature for the remaining 3 generations by default.
+- Stage 3 retries transient generation failures by default before marking a row incomplete.
 - Stage 3.1 now implements the full paper-skeleton filter stack:
   - intent consistency
-  - policy-order
+  - policy-order, including exact match to the assigned dual-use A-level
   - parallelism / cover / framing consistency
   - task consistency
   - harm-domain consistency
   - naturalness / lexical artifact checks
-  - ROUGE-L deduplication within harm-domain + task-type buckets
+  - greedy ROUGE-L deduplication within harm-domain + task-type buckets
 - Stage 3.1 prints per-check pass/fail counts at the end of a run and can also emit a full audit file.

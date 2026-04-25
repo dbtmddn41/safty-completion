@@ -73,6 +73,33 @@ def normalize_prompt_for_dedup(*prompts: str) -> str:
     return " ".join(text.split())
 
 
+def normalized_prompt_fields_for_dedup(row: Dict[str, Any]) -> List[str]:
+    return [
+        normalize_prompt_for_dedup(str(get_by_dot_path(row, path)))
+        for path in [
+            "stage3.benign_prompt",
+            "stage3.dual_use_prompt",
+            "stage3.malicious_prompt",
+        ]
+    ]
+
+
+def max_prompt_rouge_l(left_prompts: List[str], right_prompts: List[str]) -> float:
+    similarities = [
+        rouge_l_f1(left_prompt, right_prompt)
+        for left_prompt, right_prompt in zip(left_prompts, right_prompts)
+    ]
+    return max(similarities) if similarities else 0.0
+
+
+def dedup_sort_key(row: Dict[str, Any]) -> Tuple[str, str, str]:
+    return (
+        str(row.get("dual_use_record_id", "")),
+        str(row.get("triplet_record_id", "")),
+        str(row.get("row_index", "")),
+    )
+
+
 def lcs_length(left: List[str], right: List[str]) -> int:
     if not left or not right:
         return 0
@@ -532,9 +559,11 @@ def derive_checks(
     check6: Dict[str, bool],
     assigned_task_type: str,
     assigned_harm_domain: str,
+    target_a_level: str,
 ) -> Dict[str, bool]:
     malicious_level = check2["malicious_a_level"]
     dual_use_level = check2["dual_use_a_level"]
+    target_level = canonical_a_level(target_a_level)
 
     check1_pass = (
         check1["benign_intent"] == "Benign"
@@ -544,7 +573,7 @@ def derive_checks(
 
     check2_pass = (
         check2["benign_a_level"] == "A4"
-        and dual_use_level in {"A2", "A3"}
+        and dual_use_level == target_level
         and malicious_level in {"A0", "A1", "A2"}
         and A_LEVEL_ORDER[malicious_level] < A_LEVEL_ORDER[dual_use_level]
     )
@@ -593,27 +622,26 @@ def apply_deduplication(
 
     cluster_summary: Dict[str, int] = {}
     for bucket_key, rows in buckets.items():
-        normalized_triplets = [
-            normalize_prompt_for_dedup(
-                str(get_by_dot_path(row, "stage3.benign_prompt")),
-                str(get_by_dot_path(row, "stage3.dual_use_prompt")),
-                str(get_by_dot_path(row, "stage3.malicious_prompt")),
-            )
-            for row in rows
-        ]
-        max_similarities = [0.0] * len(rows)
-
-        for left_idx in range(len(rows)):
-            for right_idx in range(left_idx + 1, len(rows)):
-                sim = rouge_l_f1(normalized_triplets[left_idx], normalized_triplets[right_idx])
-                if sim > max_similarities[left_idx]:
-                    max_similarities[left_idx] = sim
-                if sim > max_similarities[right_idx]:
-                    max_similarities[right_idx] = sim
-
         cluster_label = " | ".join(bucket_key)
         kept = 0
-        for row, max_sim in zip(rows, max_similarities):
+        kept_representatives: List[Dict[str, Any]] = []
+        normalized_by_row_id = {
+            id(row): normalized_prompt_fields_for_dedup(row)
+            for row in rows
+        }
+
+        for row in sorted(rows, key=dedup_sort_key):
+            max_sim = 0.0
+            duplicate_of = None
+            normalized_prompts = normalized_by_row_id[id(row)]
+            for representative in kept_representatives:
+                sim = max_prompt_rouge_l(
+                    normalized_prompts,
+                    normalized_by_row_id[id(representative)],
+                )
+                if sim > max_sim:
+                    max_sim = sim
+                    duplicate_of = representative.get("triplet_record_id")
             stage = row["stage3_1"]
             dedup_pass = max_sim < threshold
             stage["dedup_bucket"] = {
@@ -622,11 +650,13 @@ def apply_deduplication(
             }
             stage["check7_deduplication"] = dedup_pass
             stage["max_rouge_l_similarity_within_bucket"] = round(max_sim, 6)
+            stage["dedup_duplicate_of"] = duplicate_of
             stage["dedup_threshold"] = threshold
             if not dedup_pass:
                 append_failure_reason(stage["failure_reasons"], "failed_check7_deduplication")
             stage["accepted"] = bool(stage["pre_dedup_accepted"] and dedup_pass)
             if stage["accepted"]:
+                kept_representatives.append(row)
                 kept += 1
         cluster_summary[cluster_label] = kept
     return cluster_summary
@@ -693,6 +723,7 @@ def process_row(
         c1, c2, c3, c4, c5, c6,
         assigned_task_type=task_type,
         assigned_harm_domain=harm_domain,
+        target_a_level=a_level,
     )
 
     failure_reasons: List[str] = []

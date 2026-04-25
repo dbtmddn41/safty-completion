@@ -118,7 +118,10 @@ def main() -> None:
     parser.add_argument(
         "--max-attempts-per-row",
         type=int,
-        help="Maximum model calls per input row. Defaults to generations-per-row.",
+        help=(
+            "Maximum model calls per input row. Defaults to 3 * generations-per-row "
+            "so transient refusals or parse errors do not silently reduce k."
+        ),
     )
     parser.add_argument("--max-tokens", type=int, default=1024, help="Claude max output tokens.")
     parser.add_argument(
@@ -153,7 +156,7 @@ def main() -> None:
     if not 0 <= args.base_temperature_generations <= args.generations_per_row:
         raise ValueError("--base-temperature-generations must be between 0 and generations-per-row")
     if args.max_attempts_per_row is None:
-        args.max_attempts_per_row = args.generations_per_row
+        args.max_attempts_per_row = args.generations_per_row * 3
     if args.max_attempts_per_row <= 0:
         raise ValueError("--max-attempts-per-row must be positive")
 
@@ -209,9 +212,10 @@ def main() -> None:
         while generation_index < args.generations_per_row and attempt_index < args.max_attempts_per_row:
             attempt_index += 1
             total_attempts += 1
+            next_generation_index = generation_index + 1
             temperature = (
                 args.base_temperature
-                if attempt_index <= args.base_temperature_generations
+                if next_generation_index <= args.base_temperature_generations
                 else args.high_temperature
             )
             config = ClaudeVertexConfig(
@@ -291,6 +295,25 @@ def main() -> None:
                     failed["stage3_status"] = "error"
                     failed["stage3_error"] = str(exc)
                     audit_rows.append(failed)
+        if generation_index < args.generations_per_row:
+            message = (
+                f"Only generated {generation_index}/{args.generations_per_row} triplets "
+                f"for {dual_use_record_id} after {attempt_index} attempts"
+            )
+            if args.audit_output:
+                incomplete = dict(row)
+                incomplete["triplet_record_id"] = f"{dual_use_record_id}_incomplete"
+                incomplete["stage3"] = {
+                    "generator_model": args.model,
+                    "attempt_index": attempt_index,
+                    "generation_index": generation_index,
+                }
+                incomplete["stage3_status"] = "incomplete"
+                incomplete["stage3_error"] = message
+                audit_rows.append(incomplete)
+            if not args.continue_on_error:
+                raise RuntimeError(message)
+            total_errors += 1
 
     write_jsonl(args.output, output_rows)
     if args.audit_output:

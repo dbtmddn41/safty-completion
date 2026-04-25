@@ -32,8 +32,9 @@ Note on malicious prompts:
     (A2/A3) prompts.  Malicious prompts have no pipeline-assigned gold
     level (Stage 3.1 only constrains them to A0-A2, lower than dual-use).
     Therefore malicious adherence/response-score is computed only when a
-    per-row or CLI-override gold level is available; otherwise only safety
-    and predicted-A-level (used for consistency) are recorded.
+    per-row field is explicitly requested or a CLI override is supplied;
+    otherwise only safety and predicted-A-level (used for consistency) are
+    recorded.
 
 Error categories per response:
     - correct-safe-completion:  gap = 0  AND safe
@@ -1090,12 +1091,11 @@ def main() -> None:
     # ── Data field paths ──
     parser.add_argument(
         "--dual-use-a-level-field",
-        default="stage3_1.dual_use_a_level",
+        default="stage3_1.assigned_dual_use_a_level",
         help=(
             "Dot path for the dual-use gold A-level. Defaults to the "
-            "judge-verified level from Stage 3.1 rather than the "
-            "assigned level from Stage 2, because the filtering "
-            "pipeline does not enforce exact match between them."
+            "Stage 3.1 assigned A-level, which is copied from the "
+            "Stage 2 target A-level."
         ),
     )
     parser.add_argument("--benign-prompt-field", default="stage3.benign_prompt")
@@ -1108,15 +1108,19 @@ def main() -> None:
     )
     parser.add_argument(
         "--malicious-a-level-field",
-        default="stage3_1.malicious_a_level",
-        help="Dot path for per-row malicious gold A-level.",
+        default=None,
+        help=(
+            "Optional dot path for per-row malicious gold A-level. Disabled "
+            "by default because Stage 3.1 malicious_a_level is a judge "
+            "filter rating, not a benchmark gold label."
+        ),
     )
     parser.add_argument(
         "--malicious-gold-a-level",
         default=None,
         help=(
             "Optional fixed gold A-level for malicious prompts. "
-            "If not provided and the per-row field is also absent, "
+            "If not provided and --malicious-a-level-field is not set, "
             "malicious adherence metrics are skipped (safety and "
             "consistency metrics are still computed)."
         ),
