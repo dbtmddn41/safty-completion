@@ -8,11 +8,21 @@
     "w_response": 0.8,
     "w_consistency": 0.2
   },
+  "gold_a_level_sources": {
+    "benign": "constant:A4",
+    "dual_use": "stage3_1.assigned_dual_use_a_level",
+    "malicious": "preserved:eval.malicious.gold_a_level"
+  },
+  "source_repair": {
+    "dual_use_gold_rewritten": 99,
+    "missing_dual_use_gold_source": 0,
+    "note": "Dual-use gold A-level is canonicalized to stage3_1.assigned_dual_use_a_level; malicious gold values are preserved."
+  },
   "total_samples": 201,
   "evaluated_samples": 201,
   "errors": 0,
-  "overall_score": 0.2753,
-  "response_score": 0.2104,
+  "overall_score": 0.2771,
+  "response_score": 0.2127,
   "consistency_score": 0.5347,
   "metrics_by_intent": {
     "benign": {
@@ -36,23 +46,23 @@
     "dual_use": {
       "count": 201,
       "adherence_count": 201,
-      "mean_adherence_gap": 1.01,
-      "over_assistance_rate": 0.1493,
-      "correct_adherence_rate": 0.1542,
-      "mild_over_refusal_rate": 0.3582,
-      "severe_over_refusal_rate": 0.3383,
+      "mean_adherence_gap": 0.806,
+      "over_assistance_rate": 0.1592,
+      "correct_adherence_rate": 0.2438,
+      "mild_over_refusal_rate": 0.2836,
+      "severe_over_refusal_rate": 0.3134,
       "error_profile": {
-        "correct-safe-completion": 0.1493,
-        "mild-overshoot": 0.1393,
-        "over-refusal": 0.6965,
-        "severe-overshoot": 0.01,
+        "correct-safe-completion": 0.2388,
+        "mild-overshoot": 0.0746,
+        "over-refusal": 0.597,
+        "severe-overshoot": 0.0846,
         "unsafe-in-band": 0.005
       },
       "safety_rate": 0.995,
       "unsafe_rate": 0.005,
-      "conditional_helpfulness_count": 102,
+      "conditional_helpfulness_count": 105,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.1449
+      "mean_response_score": 0.152
     },
     "malicious": {
       "count": 201,
@@ -78,188 +88,189 @@
     "overall": {
       "count": 603,
       "adherence_count": 603,
-      "mean_adherence_gap": 0.6949,
-      "over_assistance_rate": 0.0896,
-      "correct_adherence_rate": 0.3665,
-      "mild_over_refusal_rate": 0.3549,
-      "severe_over_refusal_rate": 0.1891,
+      "mean_adherence_gap": 0.6269,
+      "over_assistance_rate": 0.0929,
+      "correct_adherence_rate": 0.3964,
+      "mild_over_refusal_rate": 0.33,
+      "severe_over_refusal_rate": 0.1808,
       "error_profile": {
-        "correct-safe-completion": 0.3648,
-        "mild-overshoot": 0.0713,
-        "over-refusal": 0.5439,
-        "severe-overshoot": 0.01,
+        "correct-safe-completion": 0.3947,
+        "mild-overshoot": 0.0498,
+        "over-refusal": 0.5108,
+        "severe-overshoot": 0.0348,
         "unsafe-in-band": 0.01
       },
       "safety_rate": 0.99,
       "unsafe_rate": 0.01,
-      "conditional_helpfulness_count": 434,
+      "conditional_helpfulness_count": 437,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.2104
+      "mean_response_score": 0.2127
     }
   },
   "metrics_by_harm_domain": {
     "Fraud and Deception": {
       "count": 207,
       "adherence_count": 207,
-      "mean_adherence_gap": 0.5942,
-      "over_assistance_rate": 0.1159,
-      "correct_adherence_rate": 0.372,
-      "mild_over_refusal_rate": 0.3478,
-      "severe_over_refusal_rate": 0.1643,
+      "mean_adherence_gap": 0.5266,
+      "over_assistance_rate": 0.1256,
+      "correct_adherence_rate": 0.3865,
+      "mild_over_refusal_rate": 0.3333,
+      "severe_over_refusal_rate": 0.1546,
       "error_profile": {
-        "correct-safe-completion": 0.372,
-        "mild-overshoot": 0.0966,
-        "over-refusal": 0.5121,
-        "severe-overshoot": 0.0193
+        "correct-safe-completion": 0.3865,
+        "mild-overshoot": 0.0773,
+        "over-refusal": 0.4879,
+        "severe-overshoot": 0.0483
       },
       "safety_rate": 1.0,
       "unsafe_rate": 0.0,
       "conditional_helpfulness_count": 149,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.2132
+      "mean_response_score": 0.213
     },
     "Hate and Harassment": {
       "count": 117,
       "adherence_count": 117,
-      "mean_adherence_gap": 0.5726,
+      "mean_adherence_gap": 0.5385,
       "over_assistance_rate": 0.0855,
-      "correct_adherence_rate": 0.4359,
-      "mild_over_refusal_rate": 0.3248,
+      "correct_adherence_rate": 0.4615,
+      "mild_over_refusal_rate": 0.2991,
       "severe_over_refusal_rate": 0.1538,
       "error_profile": {
-        "correct-safe-completion": 0.4274,
-        "mild-overshoot": 0.0684,
-        "over-refusal": 0.4786,
-        "severe-overshoot": 0.0085,
+        "correct-safe-completion": 0.453,
+        "mild-overshoot": 0.0427,
+        "over-refusal": 0.453,
+        "severe-overshoot": 0.0342,
         "unsafe-in-band": 0.0171
       },
       "safety_rate": 0.9829,
       "unsafe_rate": 0.0171,
       "conditional_helpfulness_count": 88,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.2239
+      "mean_response_score": 0.2244
     },
     "Privacy and Data Misuse": {
       "count": 48,
       "adherence_count": 48,
-      "mean_adherence_gap": 0.9583,
+      "mean_adherence_gap": 0.9375,
       "over_assistance_rate": 0.0417,
-      "correct_adherence_rate": 0.3542,
-      "mild_over_refusal_rate": 0.3333,
+      "correct_adherence_rate": 0.375,
+      "mild_over_refusal_rate": 0.3125,
       "severe_over_refusal_rate": 0.2708,
       "error_profile": {
-        "correct-safe-completion": 0.3542,
-        "mild-overshoot": 0.0208,
-        "over-refusal": 0.6042,
+        "correct-safe-completion": 0.375,
+        "over-refusal": 0.5833,
+        "severe-overshoot": 0.0208,
         "unsafe-in-band": 0.0208
       },
       "safety_rate": 0.9792,
       "unsafe_rate": 0.0208,
       "conditional_helpfulness_count": 33,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.1976
+      "mean_response_score": 0.1979
     },
     "Evasion and Circumvention": {
       "count": 99,
       "adherence_count": 99,
-      "mean_adherence_gap": 0.6768,
+      "mean_adherence_gap": 0.5253,
       "over_assistance_rate": 0.1212,
-      "correct_adherence_rate": 0.3232,
-      "mild_over_refusal_rate": 0.3535,
-      "severe_over_refusal_rate": 0.202,
+      "correct_adherence_rate": 0.3939,
+      "mild_over_refusal_rate": 0.303,
+      "severe_over_refusal_rate": 0.1818,
       "error_profile": {
-        "correct-safe-completion": 0.3232,
-        "mild-overshoot": 0.0808,
-        "over-refusal": 0.5556,
-        "severe-overshoot": 0.0101,
+        "correct-safe-completion": 0.3939,
+        "mild-overshoot": 0.0404,
+        "over-refusal": 0.4848,
+        "severe-overshoot": 0.0505,
         "unsafe-in-band": 0.0303
       },
       "safety_rate": 0.9697,
       "unsafe_rate": 0.0303,
-      "conditional_helpfulness_count": 67,
+      "conditional_helpfulness_count": 69,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.197
+      "mean_response_score": 0.2054
     },
     "Cyber Compromise": {
       "count": 84,
       "adherence_count": 84,
-      "mean_adherence_gap": 0.8095,
+      "mean_adherence_gap": 0.7857,
       "over_assistance_rate": 0.0357,
-      "correct_adherence_rate": 0.3333,
-      "mild_over_refusal_rate": 0.4524,
+      "correct_adherence_rate": 0.3571,
+      "mild_over_refusal_rate": 0.4286,
       "severe_over_refusal_rate": 0.1786,
       "error_profile": {
-        "correct-safe-completion": 0.3333,
+        "correct-safe-completion": 0.3571,
         "mild-overshoot": 0.0357,
-        "over-refusal": 0.631
+        "over-refusal": 0.6071
       },
       "safety_rate": 1.0,
       "unsafe_rate": 0.0,
       "conditional_helpfulness_count": 66,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.2196
+      "mean_response_score": 0.222
     },
     "Physical Harm and Weapons": {
       "count": 48,
       "adherence_count": 48,
-      "mean_adherence_gap": 1.0,
+      "mean_adherence_gap": 0.8958,
       "over_assistance_rate": 0.0625,
-      "correct_adherence_rate": 0.3333,
-      "mild_over_refusal_rate": 0.3125,
-      "severe_over_refusal_rate": 0.2917,
+      "correct_adherence_rate": 0.375,
+      "mild_over_refusal_rate": 0.2917,
+      "severe_over_refusal_rate": 0.2708,
       "error_profile": {
-        "correct-safe-completion": 0.3333,
-        "mild-overshoot": 0.0625,
-        "over-refusal": 0.6042
+        "correct-safe-completion": 0.375,
+        "mild-overshoot": 0.0417,
+        "over-refusal": 0.5625,
+        "severe-overshoot": 0.0208
       },
       "safety_rate": 1.0,
       "unsafe_rate": 0.0,
-      "conditional_helpfulness_count": 31,
+      "conditional_helpfulness_count": 32,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.1892
+      "mean_response_score": 0.1965
     }
   },
   "metrics_by_task_type": {
     "Planning and Procedure": {
       "count": 519,
       "adherence_count": 519,
-      "mean_adherence_gap": 0.7013,
-      "over_assistance_rate": 0.079,
-      "correct_adherence_rate": 0.3757,
-      "mild_over_refusal_rate": 0.3622,
-      "severe_over_refusal_rate": 0.183,
+      "mean_adherence_gap": 0.6185,
+      "over_assistance_rate": 0.0829,
+      "correct_adherence_rate": 0.4085,
+      "mild_over_refusal_rate": 0.3372,
+      "severe_over_refusal_rate": 0.1715,
       "error_profile": {
-        "correct-safe-completion": 0.3738,
-        "mild-overshoot": 0.0636,
-        "over-refusal": 0.5453,
-        "severe-overshoot": 0.0058,
+        "correct-safe-completion": 0.4066,
+        "mild-overshoot": 0.0405,
+        "over-refusal": 0.5087,
+        "severe-overshoot": 0.0328,
         "unsafe-in-band": 0.0116
       },
       "safety_rate": 0.9884,
       "unsafe_rate": 0.0116,
-      "conditional_helpfulness_count": 382,
+      "conditional_helpfulness_count": 386,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.2144
+      "mean_response_score": 0.2176
     },
     "Explanation": {
       "count": 84,
       "adherence_count": 84,
-      "mean_adherence_gap": 0.6548,
+      "mean_adherence_gap": 0.6786,
       "over_assistance_rate": 0.1548,
-      "correct_adherence_rate": 0.3095,
-      "mild_over_refusal_rate": 0.3095,
-      "severe_over_refusal_rate": 0.2262,
+      "correct_adherence_rate": 0.3214,
+      "mild_over_refusal_rate": 0.2857,
+      "severe_over_refusal_rate": 0.2381,
       "error_profile": {
-        "correct-safe-completion": 0.3095,
-        "mild-overshoot": 0.119,
-        "over-refusal": 0.5357,
-        "severe-overshoot": 0.0357
+        "correct-safe-completion": 0.3214,
+        "mild-overshoot": 0.1071,
+        "over-refusal": 0.5238,
+        "severe-overshoot": 0.0476
       },
       "safety_rate": 1.0,
       "unsafe_rate": 0.0,
-      "conditional_helpfulness_count": 52,
+      "conditional_helpfulness_count": 51,
       "mean_conditional_helpfulness": 1.0,
-      "mean_response_score": 0.1853
+      "mean_response_score": 0.1827
     }
   },
   "consistency": {
