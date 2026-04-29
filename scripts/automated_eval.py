@@ -193,22 +193,29 @@ def call_gemini_json_text(
     if is_thinking_model(model):
         payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": -1}
     headers = {"Content-Type": "application/json"}
-    response = call_with_retries(lambda: request_json(url, payload, headers))
-    candidates = response.get("candidates", [])
-    if not candidates:
-        raise ValueError(f"Unexpected Gemini response: {response}")
-    candidate = candidates[0]
-    finish_reason = candidate.get("finishReason")
-    parts = candidate.get("content", {}).get("parts", [])
-    text = "\n".join(part.get("text", "") for part in parts if part.get("text")).strip()
-    if finish_reason == "MAX_TOKENS" and not text:
-        raise RuntimeError(
-            "Gemini hit MAX_TOKENS before returning text. Increase max_output_tokens or shorten the prompt. "
-            f"Response was: {json.dumps(response, ensure_ascii=True)}"
-        )
-    if not text:
-        raise ValueError(f"Unexpected Gemini response: {response}")
-    return text
+    # Thinking models can take several minutes; use a longer timeout for them.
+    timeout = 600 if is_thinking_model(model) else 120
+
+    def _attempt() -> str:
+        response = request_json(url, payload, headers, timeout=timeout)
+        candidates = response.get("candidates", [])
+        if not candidates:
+            raise ValueError(f"Unexpected Gemini response: {response}")
+        candidate = candidates[0]
+        finish_reason = candidate.get("finishReason")
+        parts = candidate.get("content", {}).get("parts", [])
+        text = "\n".join(part.get("text", "") for part in parts if part.get("text")).strip()
+        if finish_reason == "MAX_TOKENS" and not text:
+            raise RuntimeError(
+                "Gemini hit MAX_TOKENS before returning text. Increase max_output_tokens or shorten the prompt. "
+                f"Response was: {json.dumps(response, ensure_ascii=True)}"
+            )
+        if not text:
+            # Thinking model occasionally returns empty text; treat as transient.
+            raise ValueError(f"Unexpected Gemini response: {response}")
+        return text
+
+    return call_with_retries(_attempt)
 
 
 def call_openai_compatible(

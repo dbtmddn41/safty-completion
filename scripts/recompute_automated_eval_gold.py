@@ -53,7 +53,7 @@ def write_summary(path: str, summary: Dict[str, Any]) -> None:
 def set_gold_dependent_fields(
     result: Dict[str, Any],
     gold_a_level: Optional[str],
-    source: str,
+    source: Optional[str],
 ) -> bool:
     old_values = {
         key: result.get(key)
@@ -179,14 +179,16 @@ def aggregate_summary(
         "gold_a_level_sources": {
             "benign": f"constant:{DEFAULT_BENIGN_GOLD}",
             "dual_use": dual_use_gold_field,
-            "malicious": "preserved:eval.malicious.gold_a_level",
+            "malicious": None,
         },
         "source_repair": {
             "dual_use_gold_rewritten": changed_dual_gold,
             "missing_dual_use_gold_source": missing_dual_gold,
             "note": (
                 "Dual-use gold A-level is canonicalized to "
-                f"{CANONICAL_DUAL_USE_GOLD_FIELD}; malicious gold values are preserved."
+                f"{CANONICAL_DUAL_USE_GOLD_FIELD}. "
+                "Malicious gold A-level is cleared: stage3_1.malicious_a_level "
+                "is a judge filter rating, not a benchmark gold label."
             ),
         },
         "total_samples": old_summary.get("total_samples", len(rows)),
@@ -237,7 +239,7 @@ def process_file(path: str, *, write: bool) -> Dict[str, Any]:
         ev["gold_a_level_sources"] = {
             "benign": f"constant:{DEFAULT_BENIGN_GOLD}",
             "dual_use": CANONICAL_DUAL_USE_GOLD_FIELD,
-            "malicious": "preserved:eval.malicious.gold_a_level",
+            "malicious": None,
         }
 
         if is_prompt_result(ev.get("benign")):
@@ -263,13 +265,13 @@ def process_file(path: str, *, write: bool) -> Dict[str, Any]:
                 changed_dual_gold += 1
 
         if is_prompt_result(ev.get("malicious")):
-            # This repair is scoped to the dual-use gold source. Preserve any
-            # malicious gold semantics already present in the file.
-            malicious_gold = ev["malicious"].get("gold_a_level")
+            # stage3_1.malicious_a_level is a judge filter rating, not a
+            # pipeline-assigned benchmark gold label.  Clear any gold value
+            # that may have been written by an older version of this script.
             if set_gold_dependent_fields(
                 ev["malicious"],
-                malicious_gold,
-                "preserved:eval.malicious.gold_a_level",
+                None,
+                None,
             ):
                 changed += 1
 

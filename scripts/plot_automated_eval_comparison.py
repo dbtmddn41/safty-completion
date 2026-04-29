@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -75,12 +76,14 @@ METRIC_LABELS = {
     "consistency_mean_overall_consistency": "Mean consistency",
 }
 
-def _categorize_frame(df, include_intent=False):
+def _categorize_frame(df, models=None, datasets=None, include_intent=False):
     if df.empty:
         return df
 
-    df["model"] = pd.Categorical(df["model"], categories=MODELS, ordered=True)
-    df["dataset"] = pd.Categorical(df["dataset"], categories=DATASETS, ordered=True)
+    models = models or MODELS
+    datasets = datasets or DATASETS
+    df["model"] = pd.Categorical(df["model"], categories=models, ordered=True)
+    df["dataset"] = pd.Categorical(df["dataset"], categories=datasets, ordered=True)
     if include_intent:
         df["intent"] = pd.Categorical(df["intent"], categories=INTENTS, ordered=True)
         return df.sort_values(["intent", "model", "dataset"]).reset_index(drop=True)
@@ -101,15 +104,21 @@ def _format_gap_label(gap):
     return f"{gap_int:+d}" if gap_int > 0 else str(gap_int)
 
 
-def load_summary_rows(base_dir):
+def _available_metrics(df, metrics):
+    return [metric for metric in metrics if metric in df.columns]
+
+
+def load_summary_rows(base_dir, models=None, datasets=None):
+    models = models or MODELS
+    datasets = datasets or DATASETS
     overall_rows = []
     intent_rows = []
     harm_rows = []
     task_rows = []
     gap_rows = []
 
-    for model in MODELS:
-        for dataset in DATASETS:
+    for model in models:
+        for dataset in datasets:
             file_pattern = os.path.join(base_dir, model, f"*{dataset}_summary.json")
             files = sorted(glob(file_pattern))
             if not files:
@@ -200,17 +209,17 @@ def load_summary_rows(base_dir):
                                     }
                                 )
 
-    overall_df = _categorize_frame(pd.DataFrame(overall_rows))
-    intent_df = _categorize_frame(pd.DataFrame(intent_rows), include_intent=True)
-    harm_df = _categorize_frame(pd.DataFrame(harm_rows))
+    overall_df = _categorize_frame(pd.DataFrame(overall_rows), models=models, datasets=datasets)
+    intent_df = _categorize_frame(pd.DataFrame(intent_rows), models=models, datasets=datasets, include_intent=True)
+    harm_df = _categorize_frame(pd.DataFrame(harm_rows), models=models, datasets=datasets)
     if not harm_df.empty:
         harm_df = harm_df.sort_values(["harm_domain", "model", "dataset"]).reset_index(drop=True)
 
-    task_df = _categorize_frame(pd.DataFrame(task_rows))
+    task_df = _categorize_frame(pd.DataFrame(task_rows), models=models, datasets=datasets)
     if not task_df.empty:
         task_df = task_df.sort_values(["task_type", "model", "dataset"]).reset_index(drop=True)
 
-    gap_df = _categorize_frame(pd.DataFrame(gap_rows), include_intent=True)
+    gap_df = _categorize_frame(pd.DataFrame(gap_rows), models=models, datasets=datasets, include_intent=True)
     return overall_df, intent_df, harm_df, task_df, gap_df
 
 def _display_values(values, labels_map):
@@ -229,7 +238,13 @@ def _style_axis(axis, tick_values, tick_labels, xlabel, ylabel="", y_limits=None
         axis.set_title(title, fontsize=11, pad=10)
 
 
-def plot_grouped_family(df, metrics, panel_key, x_key, output_path, figure_title, y_label, y_limits=None):
+def plot_grouped_family(df, metrics, panel_key, x_key, output_path, figure_title, y_label, models=None, datasets=None, y_limits=None):
+    metrics = _available_metrics(df, metrics)
+    if df.empty or not metrics:
+        return
+
+    models = models or MODELS
+    datasets = datasets or DATASETS
     melted = df.melt(
         id_vars=["model", "dataset"],
         value_vars=metrics,
@@ -237,8 +252,8 @@ def plot_grouped_family(df, metrics, panel_key, x_key, output_path, figure_title
         value_name="score",
     ).dropna(subset=["score"])
 
-    panel_values = DATASETS if panel_key == "dataset" else MODELS
-    x_values = MODELS if x_key == "model" else DATASETS
+    panel_values = datasets if panel_key == "dataset" else models
+    x_values = models if x_key == "model" else datasets
     x_labels = MODEL_TICK_LABELS if x_key == "model" else DATASET_TICK_LABELS
     title_labels = DATASET_LABELS if panel_key == "dataset" else MODEL_LABELS
 
@@ -295,9 +310,15 @@ def plot_grouped_family(df, metrics, panel_key, x_key, output_path, figure_title
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-def plot_metric_grid(df, metrics, panel_key, x_key, output_path, figure_title):
-    panel_values = DATASETS if panel_key == "dataset" else MODELS
-    x_values = MODELS if x_key == "model" else DATASETS
+def plot_metric_grid(df, metrics, panel_key, x_key, output_path, figure_title, models=None, datasets=None):
+    metrics = _available_metrics(df, metrics)
+    if df.empty or not metrics:
+        return
+
+    models = models or MODELS
+    datasets = datasets or DATASETS
+    panel_values = datasets if panel_key == "dataset" else models
+    x_values = models if x_key == "model" else datasets
     x_labels = MODEL_TICK_LABELS if x_key == "model" else DATASET_TICK_LABELS
     title_labels = DATASET_LABELS if panel_key == "dataset" else MODEL_LABELS
 
@@ -346,7 +367,13 @@ def plot_metric_grid(df, metrics, panel_key, x_key, output_path, figure_title):
     plt.close(fig)
 
 
-def plot_intent_grid(df, metrics, column_key, x_key, output_path, figure_title, y_label, y_limits=None):
+def plot_intent_grid(df, metrics, column_key, x_key, output_path, figure_title, y_label, models=None, datasets=None, y_limits=None):
+    metrics = _available_metrics(df, metrics)
+    if df.empty or not metrics:
+        return
+
+    models = models or MODELS
+    datasets = datasets or DATASETS
     melted = df.melt(
         id_vars=["model", "dataset", "intent"],
         value_vars=metrics,
@@ -354,8 +381,8 @@ def plot_intent_grid(df, metrics, column_key, x_key, output_path, figure_title, 
         value_name="score",
     ).dropna(subset=["score"])
 
-    column_values = DATASETS if column_key == "dataset" else MODELS
-    x_values = MODELS if x_key == "model" else DATASETS
+    column_values = datasets if column_key == "dataset" else models
+    x_values = models if x_key == "model" else datasets
     x_labels = MODEL_TICK_LABELS if x_key == "model" else DATASET_TICK_LABELS
     column_labels = DATASET_LABELS if column_key == "dataset" else MODEL_LABELS
 
@@ -414,12 +441,15 @@ def plot_intent_grid(df, metrics, column_key, x_key, output_path, figure_title, 
     plt.close(fig)
 
 
-def plot_category_metric_grid(df, metrics, category_key, panel_key, hue_key, output_path, figure_title):
+def plot_category_metric_grid(df, metrics, category_key, panel_key, hue_key, output_path, figure_title, models=None, datasets=None):
+    metrics = _available_metrics(df, metrics)
     if df.empty or not metrics:
         return
 
-    panel_values = DATASETS if panel_key == "dataset" else MODELS
-    hue_values = MODELS if hue_key == "model" else DATASETS
+    models = models or MODELS
+    datasets = datasets or DATASETS
+    panel_values = datasets if panel_key == "dataset" else models
+    hue_values = models if hue_key == "model" else datasets
     panel_labels = DATASET_LABELS if panel_key == "dataset" else MODEL_LABELS
     hue_labels = MODEL_LABELS if hue_key == "model" else DATASET_LABELS
     categories = sorted(df[category_key].dropna().unique())
@@ -489,7 +519,7 @@ def plot_category_metric_grid(df, metrics, category_key, panel_key, hue_key, out
     plt.close(fig)
 
 
-def plot_intent_gap_grid(df, column_key, x_key, output_path, figure_title, y_label, y_limits=None):
+def plot_intent_gap_grid(df, column_key, x_key, output_path, figure_title, y_label, models=None, datasets=None, y_limits=None):
     if df.empty:
         return
 
@@ -502,8 +532,10 @@ def plot_intent_gap_grid(df, column_key, x_key, output_path, figure_title, y_lab
     counts["rate"] = counts["count"] / totals
     counts["gap_label"] = counts["adherence_gap"].map(_format_gap_label)
 
-    column_values = DATASETS if column_key == "dataset" else MODELS
-    x_values = MODELS if x_key == "model" else DATASETS
+    models = models or MODELS
+    datasets = datasets or DATASETS
+    column_values = datasets if column_key == "dataset" else models
+    x_values = models if x_key == "model" else datasets
     x_labels = MODEL_TICK_LABELS if x_key == "model" else DATASET_TICK_LABELS
     column_labels = DATASET_LABELS if column_key == "dataset" else MODEL_LABELS
     gap_values = sorted(counts["adherence_gap"].dropna().unique().tolist())
@@ -565,14 +597,49 @@ def plot_intent_gap_grid(df, column_key, x_key, output_path, figure_title, y_lab
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Plot automated-eval comparisons across models and datasets."
+    )
+    parser.add_argument(
+        "--base-dir",
+        default="data/automated_eval",
+        help="Directory containing per-model automated eval summary files.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="results/plot/automated_eval_comparison",
+        help="Directory where CSVs and plots are saved.",
+    )
+    parser.add_argument(
+        "--dataset",
+        help="Plot only one dataset by suffix, e.g. isolated_kept or 'isolated**2'. Defaults to all configured datasets.",
+    )
+    parser.add_argument(
+        "--include-diagnostic-plots",
+        action="store_true",
+        help="Also plot every numeric summary field, including count/error/sample metadata.",
+    )
+    return parser.parse_args()
+
+
 def main():
-    base_dir = "data/automated_eval"
-    output_dir = "results/plot/automated_eval_comparison"
+    args = parse_args()
+    base_dir = args.base_dir
+    datasets = [args.dataset] if args.dataset else DATASETS
+    models = MODELS
+    output_dir = args.output_dir
+    if args.dataset and output_dir == "results/plot/automated_eval_comparison":
+        output_dir = os.path.join(output_dir, args.dataset)
     os.makedirs(output_dir, exist_ok=True)
 
     sns.set_theme(style="whitegrid", context="notebook", font_scale=1.0)
 
-    overall_df, intent_df, harm_df, task_df, gap_df = load_summary_rows(base_dir)
+    overall_df, intent_df, harm_df, task_df, gap_df = load_summary_rows(
+        base_dir,
+        models=models,
+        datasets=datasets,
+    )
     if overall_df.empty:
         print("No data found to plot.")
         return
@@ -599,16 +666,8 @@ def main():
         output_path=os.path.join(output_dir, "by_dataset_model_comparison.png"),
         figure_title="Primary score comparison by dataset",
         y_label="Score",
-        y_limits=(0, 1.0),
-    )
-    plot_grouped_family(
-        overall_df,
-        PRIMARY_METRICS,
-        panel_key="model",
-        x_key="dataset",
-        output_path=os.path.join(output_dir, "by_model_dataset_comparison.png"),
-        figure_title="Primary score comparison by model",
-        y_label="Score",
+        models=models,
+        datasets=datasets,
         y_limits=(0, 1.0),
     )
     plot_grouped_family(
@@ -619,16 +678,8 @@ def main():
         output_path=os.path.join(output_dir, "by_dataset_model_safety_adherence.png"),
         figure_title="Safety and adherence rates by dataset",
         y_label="Rate",
-        y_limits=(0, 1.0),
-    )
-    plot_grouped_family(
-        overall_df,
-        RATE_METRICS,
-        panel_key="model",
-        x_key="dataset",
-        output_path=os.path.join(output_dir, "by_model_dataset_safety_adherence.png"),
-        figure_title="Safety and adherence rates by model",
-        y_label="Rate",
+        models=models,
+        datasets=datasets,
         y_limits=(0, 1.0),
     )
     plot_metric_grid(
@@ -638,14 +689,8 @@ def main():
         x_key="model",
         output_path=os.path.join(output_dir, "by_dataset_model_behavior.png"),
         figure_title="Behavior metrics by dataset",
-    )
-    plot_metric_grid(
-        overall_df,
-        BEHAVIOR_METRICS,
-        panel_key="model",
-        x_key="dataset",
-        output_path=os.path.join(output_dir, "by_model_dataset_behavior.png"),
-        figure_title="Behavior metrics by model",
+        models=models,
+        datasets=datasets,
     )
 
     plot_intent_grid(
@@ -656,16 +701,8 @@ def main():
         output_path=os.path.join(output_dir, "by_dataset_model_intent_core.png"),
         figure_title="Intent-level core metrics by dataset",
         y_label="Rate",
-        y_limits=(0, 1.0),
-    )
-    plot_intent_grid(
-        intent_df,
-        INTENT_CORE_METRICS,
-        column_key="model",
-        x_key="dataset",
-        output_path=os.path.join(output_dir, "by_model_dataset_intent_core.png"),
-        figure_title="Intent-level core metrics by model",
-        y_label="Rate",
+        models=models,
+        datasets=datasets,
         y_limits=(0, 1.0),
     )
     plot_intent_grid(
@@ -676,100 +713,10 @@ def main():
         output_path=os.path.join(output_dir, "by_dataset_model_intent_errors.png"),
         figure_title="Intent-level error profiles by dataset",
         y_label="Rate",
+        models=models,
+        datasets=datasets,
         y_limits=(0, 1.0),
     )
-    plot_intent_grid(
-        intent_df,
-        INTENT_ERROR_METRICS,
-        column_key="model",
-        x_key="dataset",
-        output_path=os.path.join(output_dir, "by_model_dataset_intent_errors.png"),
-        figure_title="Intent-level error profiles by model",
-        y_label="Rate",
-        y_limits=(0, 1.0),
-    )
-
-    # Plot all numeric fields from the summary tables so that no metric is dropped.
-    overall_all_metrics = _numeric_columns(overall_df, {"model", "dataset", "source_file"})
-    intent_all_metrics = _numeric_columns(intent_df, {"model", "dataset", "intent", "source_file"})
-
-    plot_metric_grid(
-        overall_df,
-        overall_all_metrics,
-        panel_key="dataset",
-        x_key="model",
-        output_path=os.path.join(output_dir, "by_dataset_model_all_overall_metrics.png"),
-        figure_title="All overall numeric metrics by dataset",
-    )
-    plot_metric_grid(
-        overall_df,
-        overall_all_metrics,
-        panel_key="model",
-        x_key="dataset",
-        output_path=os.path.join(output_dir, "by_model_dataset_all_overall_metrics.png"),
-        figure_title="All overall numeric metrics by model",
-    )
-
-    for intent in INTENTS:
-        intent_subset = intent_df[intent_df["intent"] == intent]
-        plot_metric_grid(
-            intent_subset,
-            intent_all_metrics,
-            panel_key="dataset",
-            x_key="model",
-            output_path=os.path.join(output_dir, f"by_dataset_model_all_metrics_{intent}.png"),
-            figure_title=f"All numeric metrics ({INTENT_LABELS.get(intent, intent)}) by dataset",
-        )
-        plot_metric_grid(
-            intent_subset,
-            intent_all_metrics,
-            panel_key="model",
-            x_key="dataset",
-            output_path=os.path.join(output_dir, f"by_model_dataset_all_metrics_{intent}.png"),
-            figure_title=f"All numeric metrics ({INTENT_LABELS.get(intent, intent)}) by model",
-        )
-
-    if not harm_df.empty:
-        harm_metrics = _numeric_columns(harm_df, {"model", "dataset", "harm_domain", "source_file"})
-        plot_category_metric_grid(
-            harm_df,
-            harm_metrics,
-            category_key="harm_domain",
-            panel_key="dataset",
-            hue_key="model",
-            output_path=os.path.join(output_dir, "by_dataset_harm_domain_all_metrics.png"),
-            figure_title="All harm-domain metrics by dataset",
-        )
-        plot_category_metric_grid(
-            harm_df,
-            harm_metrics,
-            category_key="harm_domain",
-            panel_key="model",
-            hue_key="dataset",
-            output_path=os.path.join(output_dir, "by_model_harm_domain_all_metrics.png"),
-            figure_title="All harm-domain metrics by model",
-        )
-
-    if not task_df.empty:
-        task_metrics = _numeric_columns(task_df, {"model", "dataset", "task_type", "source_file"})
-        plot_category_metric_grid(
-            task_df,
-            task_metrics,
-            category_key="task_type",
-            panel_key="dataset",
-            hue_key="model",
-            output_path=os.path.join(output_dir, "by_dataset_task_type_all_metrics.png"),
-            figure_title="All task-type metrics by dataset",
-        )
-        plot_category_metric_grid(
-            task_df,
-            task_metrics,
-            category_key="task_type",
-            panel_key="model",
-            hue_key="dataset",
-            output_path=os.path.join(output_dir, "by_model_task_type_all_metrics.png"),
-            figure_title="All task-type metrics by model",
-        )
 
     if not gap_df.empty:
         plot_intent_gap_grid(
@@ -779,17 +726,190 @@ def main():
             output_path=os.path.join(output_dir, "by_dataset_model_intent_gaps.png"),
             figure_title="Intent-level adherence gap rates by dataset",
             y_label="Rate",
+            models=models,
+            datasets=datasets,
             y_limits=(0, 1.0),
         )
-        plot_intent_gap_grid(
-            gap_df,
+
+    if not args.dataset:
+        plot_grouped_family(
+            overall_df,
+            PRIMARY_METRICS,
+            panel_key="model",
+            x_key="dataset",
+            output_path=os.path.join(output_dir, "by_model_dataset_comparison.png"),
+            figure_title="Primary score comparison by model",
+            y_label="Score",
+            models=models,
+            datasets=datasets,
+            y_limits=(0, 1.0),
+        )
+        plot_grouped_family(
+            overall_df,
+            RATE_METRICS,
+            panel_key="model",
+            x_key="dataset",
+            output_path=os.path.join(output_dir, "by_model_dataset_safety_adherence.png"),
+            figure_title="Safety and adherence rates by model",
+            y_label="Rate",
+            models=models,
+            datasets=datasets,
+            y_limits=(0, 1.0),
+        )
+        plot_metric_grid(
+            overall_df,
+            BEHAVIOR_METRICS,
+            panel_key="model",
+            x_key="dataset",
+            output_path=os.path.join(output_dir, "by_model_dataset_behavior.png"),
+            figure_title="Behavior metrics by model",
+            models=models,
+            datasets=datasets,
+        )
+
+        plot_intent_grid(
+            intent_df,
+            INTENT_CORE_METRICS,
             column_key="model",
             x_key="dataset",
-            output_path=os.path.join(output_dir, "by_model_dataset_intent_gaps.png"),
-            figure_title="Intent-level adherence gap rates by model",
+            output_path=os.path.join(output_dir, "by_model_dataset_intent_core.png"),
+            figure_title="Intent-level core metrics by model",
             y_label="Rate",
+            models=models,
+            datasets=datasets,
             y_limits=(0, 1.0),
         )
+        plot_intent_grid(
+            intent_df,
+            INTENT_ERROR_METRICS,
+            column_key="model",
+            x_key="dataset",
+            output_path=os.path.join(output_dir, "by_model_dataset_intent_errors.png"),
+            figure_title="Intent-level error profiles by model",
+            y_label="Rate",
+            models=models,
+            datasets=datasets,
+            y_limits=(0, 1.0),
+        )
+
+        if not gap_df.empty:
+            plot_intent_gap_grid(
+                gap_df,
+                column_key="model",
+                x_key="dataset",
+                output_path=os.path.join(output_dir, "by_model_dataset_intent_gaps.png"),
+                figure_title="Intent-level adherence gap rates by model",
+                y_label="Rate",
+                models=models,
+                datasets=datasets,
+                y_limits=(0, 1.0),
+            )
+
+    if args.include_diagnostic_plots:
+        # These plots include count/error/sample fields and are useful for debugging,
+        # but they are intentionally not part of the default report.
+        overall_all_metrics = _numeric_columns(overall_df, {"model", "dataset", "source_file"})
+        intent_all_metrics = _numeric_columns(intent_df, {"model", "dataset", "intent", "source_file"})
+
+        plot_metric_grid(
+            overall_df,
+            overall_all_metrics,
+            panel_key="dataset",
+            x_key="model",
+            output_path=os.path.join(output_dir, "by_dataset_model_all_overall_metrics.png"),
+            figure_title="All overall numeric metrics by dataset",
+            models=models,
+            datasets=datasets,
+        )
+
+        for intent in INTENTS:
+            intent_subset = intent_df[intent_df["intent"] == intent]
+            plot_metric_grid(
+                intent_subset,
+                intent_all_metrics,
+                panel_key="dataset",
+                x_key="model",
+                output_path=os.path.join(output_dir, f"by_dataset_model_all_metrics_{intent}.png"),
+                figure_title=f"All numeric metrics ({INTENT_LABELS.get(intent, intent)}) by dataset",
+                models=models,
+                datasets=datasets,
+            )
+
+        if not args.dataset:
+            plot_metric_grid(
+                overall_df,
+                overall_all_metrics,
+                panel_key="model",
+                x_key="dataset",
+                output_path=os.path.join(output_dir, "by_model_dataset_all_overall_metrics.png"),
+                figure_title="All overall numeric metrics by model",
+                models=models,
+                datasets=datasets,
+            )
+            for intent in INTENTS:
+                intent_subset = intent_df[intent_df["intent"] == intent]
+                plot_metric_grid(
+                    intent_subset,
+                    intent_all_metrics,
+                    panel_key="model",
+                    x_key="dataset",
+                    output_path=os.path.join(output_dir, f"by_model_dataset_all_metrics_{intent}.png"),
+                    figure_title=f"All numeric metrics ({INTENT_LABELS.get(intent, intent)}) by model",
+                    models=models,
+                    datasets=datasets,
+                )
+
+        if not harm_df.empty:
+            harm_metrics = _numeric_columns(harm_df, {"model", "dataset", "harm_domain", "source_file"})
+            plot_category_metric_grid(
+                harm_df,
+                harm_metrics,
+                category_key="harm_domain",
+                panel_key="dataset",
+                hue_key="model",
+                output_path=os.path.join(output_dir, "by_dataset_harm_domain_all_metrics.png"),
+                figure_title="All harm-domain metrics by dataset",
+                models=models,
+                datasets=datasets,
+            )
+            if not args.dataset:
+                plot_category_metric_grid(
+                    harm_df,
+                    harm_metrics,
+                    category_key="harm_domain",
+                    panel_key="model",
+                    hue_key="dataset",
+                    output_path=os.path.join(output_dir, "by_model_harm_domain_all_metrics.png"),
+                    figure_title="All harm-domain metrics by model",
+                    models=models,
+                    datasets=datasets,
+                )
+
+        if not task_df.empty:
+            task_metrics = _numeric_columns(task_df, {"model", "dataset", "task_type", "source_file"})
+            plot_category_metric_grid(
+                task_df,
+                task_metrics,
+                category_key="task_type",
+                panel_key="dataset",
+                hue_key="model",
+                output_path=os.path.join(output_dir, "by_dataset_task_type_all_metrics.png"),
+                figure_title="All task-type metrics by dataset",
+                models=models,
+                datasets=datasets,
+            )
+            if not args.dataset:
+                plot_category_metric_grid(
+                    task_df,
+                    task_metrics,
+                    category_key="task_type",
+                    panel_key="model",
+                    hue_key="dataset",
+                    output_path=os.path.join(output_dir, "by_model_task_type_all_metrics.png"),
+                    figure_title="All task-type metrics by model",
+                    models=models,
+                    datasets=datasets,
+                )
 
     best_overall = overall_df.loc[overall_df["overall_score"].idxmax()]
     worst_overall = overall_df.loc[overall_df["overall_score"].idxmin()]
